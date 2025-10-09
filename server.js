@@ -28,4 +28,17 @@ if (MODE === 'SECURE') {
 // health check route
 app.get('/healthz', (req, res) => res.send('OK'));
 
+app.post('/api/contact', (req, res) => {
+  const { name, email, message } = req.body;
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  console.log(`📩 New message:`, { name, email, message });
+
+  return res.json({ success: true });
+});
+
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}, MODE=${MODE}`));
