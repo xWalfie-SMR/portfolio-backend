@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,7 +29,7 @@ if (MODE === 'SECURE') {
 // health check route
 app.get('/healthz', (req, res) => res.send('OK'));
 
-app.post('/api/contact', (req, res) => {
+app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {
@@ -37,7 +38,30 @@ app.post('/api/contact', (req, res) => {
 
   console.log(`📩 New message:`, { name, email, message });
 
-  return res.json({ success: true });
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Portfolio Contact" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_TO,
+      subject: `New message from ${name}`,
+      text: `
+        Name: ${name}
+        Email: ${email}
+        Message: ${message}`
+    });
+
+    return res.json({ success: true, emailSent: true });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return res.status(500).json({ error: 'Failed to send email' });
+  }
 });
 
 
