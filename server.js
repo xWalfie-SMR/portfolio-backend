@@ -8,11 +8,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MODE = process.env.MODE || 'SECURE';
 
+// utils
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const MAX_MESSAGE_LENGTH = 2000;
+
 app.use(express.json());
 
+// dual security toggle
 if (MODE === 'SECURE') {
   console.log('Running in SECURE mode');
-  app.use(cors({ origin: 'https://xwalfie-smr.github.io' }));
+  app.use(cors({ origin: ['https://xwalfie-smr.github.io', 'http://localhost:5500'] })); // allow local dev
   app.use(helmet());
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 } else if (MODE === 'LAB') {
@@ -22,6 +27,7 @@ if (MODE === 'SECURE') {
   console.log(`Running in UNKNOWN mode: ${MODE}`);
 }
 
+// health check route
 app.get('/healthz', (req, res) => res.send('OK'));
 
 app.post('/api/contact', async (req, res) => {
@@ -29,6 +35,14 @@ app.post('/api/contact', async (req, res) => {
 
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} chars)` });
   }
 
   console.log(`New message:`, { name, email, message });
@@ -44,10 +58,12 @@ app.post('/api/contact', async (req, res) => {
         from: 'Portfolio Contact <onboarding@resend.dev>',
         to: process.env.EMAIL_TO,
         subject: `New message from ${name}`,
-        text: `
-          Name: ${name}
-          Email: ${email}
-          Message: ${message}
+        html: `
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Message:</strong> ${message}</p>
+          <hr>
+          <p>This message was sent from your portfolio.</p>
         `
       })
     });
