@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const fetch = require('node-fetch'); // if using node <18
+const fetch = require('node-fetch');
 const disposableDomains = require('disposable-email-domains');
 
 const app = express();
@@ -31,7 +31,7 @@ if (MODE === 'SECURE') {
   console.log('Running in SECURE mode');
   app.use(cors({ origin: ['https://xwalfie-smr.github.io', 'http://localhost:5500'] }));
   app.use(helmet());
-  app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 50 })); // stricter limit for spam
+  app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
 } else if (MODE === 'LAB') {
   console.log('Running in LAB (vulnerable) mode');
   app.use(cors());
