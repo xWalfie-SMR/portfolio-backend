@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const MODE = process.env.MODE || "SECURE";
 const MAX_MESSAGE_LENGTH = 2000;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 // utils
 const isDisposableEmail = (email) => {
@@ -78,14 +78,14 @@ app.post("/api/contact", async (req, res) => {
 
   // run AI check
   try {
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "llama3-70b-8192",
         messages: [
           {
             role: "system",
@@ -106,6 +106,9 @@ app.post("/api/contact", async (req, res) => {
     if (aiReply !== "ALLOW") {
       console.log("AI DENIED message:", { name, email, message });
       return res.status(422).json({ error: "Message rejected by AI filter" });
+    } else if (!aiReply) {
+      console.error("AI reply missing or malformed:", aiData);
+      return res.status(500).json({ error: "AI validation failed" });
     }
   } catch (err) {
     console.error("AI validation error:", err);
