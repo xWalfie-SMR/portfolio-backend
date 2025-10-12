@@ -29,7 +29,14 @@ app.use(express.json());
 
 if (MODE === "SECURE") {
   app.use(
-    cors({ origin: ["https://xwalfie-smr.github.io", "http://localhost:5500"] })
+    cors({
+      origin: [
+        "https://xwalfie-smr.github.io",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+      ],
+      credentials: true
+    })
   );
   app.use(helmet());
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
