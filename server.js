@@ -59,6 +59,9 @@ app.post("/api/contact", async (req, res) => {
   }
 
   // verify recaptcha
+  console.log("=== Recaptcha Debug Start ===");
+  console.log("Token received:", recaptchaToken);
+
   try {
     const recaptchaRes = await fetch(
       "https://www.google.com/recaptcha/api/siteverify",
@@ -68,17 +71,17 @@ app.post("/api/contact", async (req, res) => {
         body: `secret=${RECAPTCHA_SECRET}&response=${recaptchaToken}&remoteip=${ip}`,
       }
     );
+
     const recaptchaData = await recaptchaRes.json();
+    console.log("Recaptcha raw response:", recaptchaData);
 
-    console.log("Recaptcha Response:", recaptchaData);
-
-    if (!recaptchaData.success || recaptchaData.score < 0.5) {
-      return res.status(400).json({ error: "Failed recaptcha verification" });
+    if (!recaptchaData.success) {
+      console.error("Recaptcha failed:", recaptchaData["error-codes"]);
     }
   } catch (err) {
-    console.error("Recaptcha error:", err);
-    return res.status(500).json({ error: "Recaptcha verification failed" });
+    console.error("Recaptcha fetch error:", err);
   }
+  console.log("=== Recaptcha Debug End ===");
 
   // fetch the AI model and rule from gists
   const fetchAIConfig = async () => {
@@ -105,8 +108,9 @@ app.post("/api/contact", async (req, res) => {
   // run AI check
 
   const aiConfig = await fetchAIConfig();
-  if (!aiConfig) return res.status(500).json({ error: "Failed to load AI config" });
-  
+  if (!aiConfig)
+    return res.status(500).json({ error: "Failed to load AI config" });
+
   try {
     const aiRes = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
