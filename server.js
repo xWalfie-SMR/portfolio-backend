@@ -73,7 +73,10 @@ app.post("/api/contact", async (req, res) => {
     );
 
     const recaptchaData = await recaptchaRes.json();
-    console.log("Recaptcha raw response:", recaptchaData);
+    console.log(
+      "Recaptcha raw response:",
+      JSON.stringify(recaptchaData, null, 2)
+    );
 
     if (!recaptchaData.success) {
       console.error("Recaptcha failed:", recaptchaData["error-codes"]);
@@ -81,6 +84,7 @@ app.post("/api/contact", async (req, res) => {
   } catch (err) {
     console.error("Recaptcha fetch error:", err);
   }
+
   console.log("=== Recaptcha Debug End ===");
 
   // fetch the AI model and rule from gists
