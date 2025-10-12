@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const disposableDomains = require('disposable-email-domains');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,7 +45,9 @@ app.get('/healthz', (req, res) => res.send('OK'));
 // contact endpoint
 app.post('/api/contact', async (req, res) => {
   const { name, email, message, recaptchaToken } = req.body;
-  const ip = req.ip;
+
+  // get real client IP behind proxy
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
 
   // basic validation
   if (!name || !email || !message || !recaptchaToken) {
@@ -62,12 +64,15 @@ app.post('/api/contact', async (req, res) => {
 
   // recaptcha verification
   try {
-    const recaptchaRes = await fetch(`https://www.google.com/recaptcha/api/siteverify`, {
+    const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `secret=${RECAPTCHA_SECRET}&response=${recaptchaToken}&remoteip=${ip}`
     });
+
     const recaptchaData = await recaptchaRes.json();
+    console.log('Recaptcha response:', recaptchaData); // debug
+
     if (!recaptchaData.success || recaptchaData.score < 0.5) {
       return res.status(400).json({ error: 'Failed recaptcha verification' });
     }
@@ -79,6 +84,7 @@ app.post('/api/contact', async (req, res) => {
   // log message
   console.log(`New message from ${ip}:`, { name, email, message });
 
+  // send email via Resend
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
