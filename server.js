@@ -76,7 +76,35 @@ app.post("/api/contact", async (req, res) => {
     return res.status(500).json({ error: "Recaptcha verification failed" });
   }
 
+  // fetch model and rules
+
+  // fetch the AI model and rule from gists
+  const fetchAIConfig = async () => {
+    try {
+      const [modelRes, ruleRes] = await Promise.all([
+        fetch(
+          "https://gist.githubusercontent.com/xWalfie-SMR/1327853aabcc09f0fee60df8e207a022/raw"
+        ),
+        fetch(
+          "https://gist.githubusercontent.com/xWalfie-SMR/68705f0921756cd1d078c686f1e41eb6/raw"
+        ),
+      ]);
+
+      const model = (await modelRes.text()).trim();
+      const rule = (await ruleRes.text()).trim();
+
+      return { model, rule };
+    } catch (err) {
+      console.error("Failed to fetch AI config:", err);
+      return null;
+    }
+  };
+
   // run AI check
+
+  const aiConfig = await fetchAIConfig();
+  if (!aiConfig) return res.status(500).json({ error: "Failed to load AI config" });
+  
   try {
     const aiRes = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -87,13 +115,9 @@ app.post("/api/contact", async (req, res) => {
           Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: aiConfig.model,
           messages: [
-            {
-              role: "system",
-              content:
-                'You are an email filter AI. Only reject messages that are clearly spam, gibberish, or malicious; Be a bit permissive since it\'s just a portfolio. For normal messages, reply "ALLOW". Reply only with "ALLOW" or "DENY". If unsure, reply "ALLOW".',
-            },
+            { role: "system", content: aiConfig.rule },
             { role: "user", content: JSON.stringify({ name, email, message }) },
           ],
         }),
