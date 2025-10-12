@@ -1,0 +1,42 @@
+// vscode settings
+
+/*{
+    "files.autoSave": "afterDelay",
+    "editor.semanticHighlighting.enabled": true,
+    "git.autofetch": true,
+    "git.enableSmartCommit": true,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "git.confirmSync": false,
+    "chat.tools.terminal.autoApprove": {
+        "Add-Content": true,
+        "{`n": true,
+        "`n": true,
+        "'dark'": true,
+        "`n})()": true,
+        "\"": true
+    },
+
+    "terminal.integrated.cursorStyleInactive": "underline",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "workbench.colorCustomizations": {
+        "editor.background": "#1e1e1e4D",
+        "terminal.background": "#00000000",
+        "input.background": "#1e1e1e4D",
+        "inputOption.hoverBackground": "#3c3c3c4D",
+        "sideBarSectionHeader.background": "#1e1e1e4D",
+        "terminal.selectionBackground": "#ffffff80",
+        "input.border": "#3c3c3c",
+        "input.foreground": "#d4d4d4",
+        "input.placeholderForeground": "#dcd7ba",
+        "inputOption.activeBorder": "#007acc",
+        "inputOption.activeForeground": "#d4d4d4",
+        "inputOption.hoverBorder": "#3c3c3c",
+        "inputOption.hoverForeground": "#d4d4d4"
+    },
+
+    "vscode_vibrancy.opacity": "0.3",
+    "workbench.colorTheme": "Kanagawa Glass",
+
+}
+*/
