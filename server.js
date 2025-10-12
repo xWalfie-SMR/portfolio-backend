@@ -14,6 +14,7 @@ const MODE = process.env.MODE || "SECURE";
 const MAX_MESSAGE_LENGTH = 2000;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+let recaptchaEnabled = true;
 
 // utils
 const isDisposableEmail = (email) => {
@@ -59,33 +60,40 @@ app.post("/api/contact", async (req, res) => {
   }
 
   // verify recaptcha
-  console.log("=== Recaptcha Debug Start ===");
-  console.log("Token received:", recaptchaToken);
 
-  try {
-    const recaptchaRes = await fetch(
-      "https://www.google.com/recaptcha/api/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `secret=${RECAPTCHA_SECRET}&response=${recaptchaToken}&remoteip=${ip}`,
+  if (recaptchaEnabled && MODE === "SECURE") {
+    console.log("=== Recaptcha Debug Start ===");
+    console.log("Token received:", recaptchaToken);
+
+    try {
+      const recaptchaRes = await fetch(
+        "https://www.google.com/recaptcha/api/siteverify",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `secret=${RECAPTCHA_SECRET}&response=${recaptchaToken}&remoteip=${ip}`,
+        }
+      );
+
+      const recaptchaData = await recaptchaRes.json();
+      console.log(
+        "Recaptcha raw response:",
+        JSON.stringify(recaptchaData, null, 2)
+      );
+
+      if (!recaptchaData.success) {
+        console.error("Recaptcha failed:", recaptchaData["error-codes"]);
       }
-    );
-
-    const recaptchaData = await recaptchaRes.json();
-    console.log(
-      "Recaptcha raw response:",
-      JSON.stringify(recaptchaData, null, 2)
-    );
-
-    if (!recaptchaData.success) {
-      console.error("Recaptcha failed:", recaptchaData["error-codes"]);
+    } catch (err) {
+      console.error("Recaptcha fetch error:", err);
     }
-  } catch (err) {
-    console.error("Recaptcha fetch error:", err);
-  }
 
-  console.log("=== Recaptcha Debug End ===");
+    console.log("=== Recaptcha Debug End ===");
+  } else if (MODE === "LAB") {
+    console.warn("Recaptcha skipped in LAB mode");
+  } else {
+    console.warn("Recaptcha skipped (disabled)");
+  }
 
   // fetch the AI model and rule from gists
   const fetchAIConfig = async () => {
@@ -122,7 +130,7 @@ app.post("/api/contact", async (req, res) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
         },
         body: JSON.stringify({
           model: aiConfig.model,
@@ -184,6 +192,13 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
+// toggle recaptcha endpoint
+app.post("/api/toggle-recaptcha", (req, res) => {
+  recaptchaEnabled = !recaptchaEnabled;
+  res.json({ recaptchaEnabled });
+});
+
+// start server
 app.listen(PORT, () =>
   console.log(`Server running on port ${PORT}, MODE=${MODE}`)
 );
