@@ -69,6 +69,9 @@ app.post("/api/contact", async (req, res) => {
       }
     );
     const recaptchaData = await recaptchaRes.json();
+
+    console.log("Recaptcha Response:", recaptchaData);
+
     if (!recaptchaData.success || recaptchaData.score < 0.5) {
       return res.status(400).json({ error: "Failed recaptcha verification" });
     }
@@ -76,8 +79,6 @@ app.post("/api/contact", async (req, res) => {
     console.error("Recaptcha error:", err);
     return res.status(500).json({ error: "Recaptcha verification failed" });
   }
-
-  // fetch model and rules
 
   // fetch the AI model and rule from gists
   const fetchAIConfig = async () => {
