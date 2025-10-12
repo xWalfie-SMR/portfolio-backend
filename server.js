@@ -81,7 +81,7 @@ app.post('/api/contact', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an email filter AI. Respond ONLY with "ALLOW" or "DENY". Deny if the message looks like spam, gibberish, or test content.'
+            content: 'You are an email filter AI. Only reject messages that are clearly spam, gibberish, or malicious; Be a bit permissive since it\'s just a portfolio. For normal messages, reply "ALLOW". Reply only with "ALLOW" or "DENY". If you\'re unsure, reply "ALLOW".'
           },
           {
             role: 'user',
