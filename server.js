@@ -154,7 +154,9 @@ app.post("/api/contact", async (req, res) => {
 
     let aiAnswer;
     try {
-      aiAnswer = JSON.parse(aiData.choices?.[0]?.message?.content || "{}");
+      let content = aiData.choices?.[0]?.message?.content?.trim() || "{}";
+      content = content.replace(/^```json\s*|```$/g, "").trim();
+      aiAnswer = JSON.parse(content);
     } catch (err) {
       console.error("Failed to parse AI JSON:", err, aiData);
       return res.status(500).json({ error: "AI validation failed" });
