@@ -78,35 +78,38 @@ app.post("/api/contact", async (req, res) => {
 
   // run AI check
   try {
-    const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [
-          {
-            role: "system",
-            content:
-              'You are an email filter AI. Only reject messages that are clearly spam, gibberish, or malicious; Be a bit permissive since it\'s just a portfolio. For normal messages, reply "ALLOW". Reply only with "ALLOW" or "DENY". If unsure, reply "ALLOW".',
-          },
-          { role: "user", content: JSON.stringify({ name, email, message }) },
-        ],
-      }),
-    });
+    const aiRes = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama3-70b-8192",
+          messages: [
+            {
+              role: "system",
+              content:
+                'You are an email filter AI. Only reject messages that are clearly spam, gibberish, or malicious; Be a bit permissive since it\'s just a portfolio. For normal messages, reply "ALLOW". Reply only with "ALLOW" or "DENY". If unsure, reply "ALLOW".',
+            },
+            { role: "user", content: JSON.stringify({ name, email, message }) },
+          ],
+        }),
+      }
+    );
 
     const aiData = await aiRes.json();
     console.log("AI Filter Response:", aiData); // <- print the raw response
 
     const aiAnswer = aiData.choices?.[0]?.message?.content?.trim();
-    console.log("AI Answer:", aiAnswer); // <- just the "ALLOW" or "DENY"
+    console.log("AI Answer:", aiAnswer);
 
-    if (aiReply !== "ALLOW") {
+    if (aiAnswer !== "ALLOW") {
       console.log("AI DENIED message:", { name, email, message });
       return res.status(422).json({ error: "Message rejected by AI filter" });
-    } else if (!aiReply) {
+    } else if (!aiAnswer) {
       console.error("AI reply missing or malformed:", aiData);
       return res.status(500).json({ error: "AI validation failed" });
     }
