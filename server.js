@@ -152,50 +152,57 @@ app.post("/api/contact", async (req, res) => {
     const aiData = await aiRes.json();
     console.log("AI Filter Response:", aiData); // <- print the raw response
 
-    const aiAnswer = aiData.choices?.[0]?.message?.content?.trim();
-    console.log("AI Answer:", aiAnswer);
-
-    if (aiAnswer !== "ALLOW") {
-      console.log("AI DENIED message:", { name, email, message });
-      return res.status(422).json({ error: "Message rejected by AI filter" });
-    } else if (!aiAnswer) {
-      console.error("AI reply missing or malformed:", aiData);
+    let aiAnswer;
+    try {
+      aiAnswer = JSON.parse(aiData.choices?.[0]?.message?.content || "{}");
+    } catch (err) {
+      console.error("Failed to parse AI JSON:", err, aiData);
       return res.status(500).json({ error: "AI validation failed" });
     }
-  } catch (err) {
-    console.error("AI validation error:", err);
-    return res.status(500).json({ error: "AI validation failed" });
-  }
 
-  // send email via Resend
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Portfolio Contact <onboarding@resend.dev>",
-        to: process.env.EMAIL_TO,
-        subject: `New message from ${name}`,
-        html: `<p><strong>Name:</strong> ${name}</p>
-               <p><strong>Email:</strong> ${email}</p>
-               <p><strong>Message:</strong> ${message}</p>
-               <hr><p>Sent from portfolio.</p>`,
-      }),
-    });
+    console.log("AI Answer:", aiAnswer);
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("Resend API error:", data);
-      return res.status(500).json({ error: "Failed to send email" });
+    if (aiAnswer.decision !== "ALLOW") {
+      console.log("AI DENIED message:", { name, email, message, reason: aiAnswer.reason });
+      return res.status(422).json({
+        error: "Message rejected by AI filter",
+        reason: aiAnswer.reason
+      });
     }
 
-    return res.json({ success: true, emailSent: true });
+    // send email via Resend
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "Portfolio Contact <onboarding@resend.dev>",
+          to: process.env.EMAIL_TO,
+          subject: `New message from ${name}`,
+          html: `<p><strong>Name:</strong> ${name}</p>
+                 <p><strong>Email:</strong> ${email}</p>
+                 <p><strong>Message:</strong> ${message}</p>
+                 <hr><p>Sent from portfolio.</p>`,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Resend API error:", data);
+        return res.status(500).json({ error: "Failed to send email" });
+      }
+
+      return res.json({ success: true, emailSent: true });
+    } catch (err) {
+      console.error("Resend send error:", err);
+      return res.status(500).json({ error: "Email send failed" });
+    }
   } catch (err) {
-    console.error("Resend send error:", err);
-    return res.status(500).json({ error: "Email send failed" });
+    console.error("AI filter error:", err);
+    return res.status(500).json({ error: "AI filter failed" });
   }
 });
 
