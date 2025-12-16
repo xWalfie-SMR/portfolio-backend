@@ -30,11 +30,12 @@ if (MODE === "SECURE") {
   app.use(
     cors({
       origin: [
+        "https://xwalfie.dev",
         "https://xwalfie-smr.github.io",
         "http://localhost:5500",
         "http://127.0.0.1:5500",
       ],
-      credentials: true
+      credentials: true,
     })
   );
   app.use(helmet());
@@ -159,7 +160,12 @@ app.post("/api/contact", async (req, res) => {
       return res.status(500).json({ error: "AI validation failed" });
     }
 
-    console.log(`AI decision: ${aiAnswer.decision}`, { name, email, message, reason: aiAnswer.reason });
+    console.log(`AI decision: ${aiAnswer.decision}`, {
+      name,
+      email,
+      message,
+      reason: aiAnswer.reason,
+    });
 
     // unified JSON response
     const jsonResponse = {
@@ -205,7 +211,6 @@ app.post("/api/contact", async (req, res) => {
 
     // send unified response
     return res.json(jsonResponse);
-
   } catch (err) {
     console.error("AI filter error:", err);
     return res.status(500).json({ error: "AI filter failed" });
