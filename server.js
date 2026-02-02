@@ -1,10 +1,13 @@
-require("dotenv").config();
+import { createRequire } from "module";
+import "dotenv/config";
 import express, { json } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
-import { includes } from "disposable-email-domains";
+
+const require = createRequire(import.meta.url);
+const { includes } = require("disposable-email-domains");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
