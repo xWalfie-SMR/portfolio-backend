@@ -15,8 +15,8 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com";
 
 // Gist URLs for AI model and prompt, adding padding after raw? to prevent caching.
-const MODEL_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/1327853aabcc09f0fee60df8e207a022/raw?xxxxx";
-const PROMPT_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/68705f0921756cd1d078c686f1e41eb6/raw?xxxxx";
+const MODEL_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/1327853aabcc09f0fee60df8e207a022/raw";
+const PROMPT_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/68705f0921756cd1d078c686f1e41eb6/raw";
 
 let recaptchaEnabled = true;
 
@@ -113,12 +113,15 @@ app.post("/api/contact", async (req, res) => {
     console.warn("Recaptcha skipped (disabled)");
   }
 
+  // cache buster
+  const bustCache = (url) => `${url}?cb=${Date.now()}`;
+
   // fetch the AI model and rule from gists
   const fetchAIConfig = async () => {
     try {
       const [modelRes, ruleRes] = await Promise.all([
-        axios.get(MODEL_GIST),
-        axios.get(PROMPT_GIST),
+        axios.get(bustCache(MODEL_GIST)),
+        axios.get(bustCache(PROMPT_GIST)),
       ]);
 
       const model = String(modelRes.data).trim();
