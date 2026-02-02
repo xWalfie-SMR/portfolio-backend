@@ -1,13 +1,10 @@
-import { createRequire } from "module";
 import "dotenv/config";
 import express, { json } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
-
-const require = createRequire(import.meta.url);
-const { includes } = require("disposable-email-domains");
+import disposableDomains from "disposable-email-domains";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,7 +23,9 @@ let recaptchaEnabled = true;
 // utils
 const isDisposableEmail = (email) => {
   const domain = email.split("@")[1]?.toLowerCase();
-  return includes(domain);
+  
+  if (!domain) return false;
+  return disposableDomains.includes(domain);
 };
 
 const validateEmailFormat = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
