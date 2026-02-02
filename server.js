@@ -1,30 +1,35 @@
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const fetch = (...args) =>
-  import("node-fetch").then(({ default: fetch }) => fetch(...args));
-const disposableDomains = require("disposable-email-domains");
+import express, { json } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import axios from "axios";
+import { includes } from "disposable-email-domains";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MODE = process.env.MODE || "SECURE";
 const MAX_MESSAGE_LENGTH = 2000;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com";
+
+// Gist URLs for AI model and prompt, adding padding after raw? to prevent caching.
+const MODEL_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/1327853aabcc09f0fee60df8e207a022/raw?xxxxx";
+const PROMPT_GIST = "https://gist.githubusercontent.com/xWalfie-SMR/68705f0921756cd1d078c686f1e41eb6/raw?xxxxx";
+
 let recaptchaEnabled = true;
 
 // utils
 const isDisposableEmail = (email) => {
   const domain = email.split("@")[1]?.toLowerCase();
-  return disposableDomains.includes(domain);
+  return includes(domain);
 };
 
 const validateEmailFormat = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 // middleware
-app.use(express.json());
+app.use(json());
 
 if (MODE === "SECURE") {
   app.use(
@@ -36,7 +41,7 @@ if (MODE === "SECURE") {
         "http://127.0.0.1:5500",
       ],
       credentials: true,
-    })
+    }),
   );
   app.use(helmet());
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
@@ -72,19 +77,24 @@ app.post("/api/contact", async (req, res) => {
     console.log("Token received:", recaptchaToken);
 
     try {
-      const recaptchaRes = await fetch(
+      const params = new URLSearchParams({
+        secret: RECAPTCHA_SECRET,
+        response: recaptchaToken,
+        remoteip: ip,
+      });
+
+      const recaptchaRes = await axios.post(
         "https://www.google.com/recaptcha/api/siteverify",
+        params.toString(),
         {
-          method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `secret=${RECAPTCHA_SECRET}&response=${recaptchaToken}&remoteip=${ip}`,
-        }
+        },
       );
 
-      const recaptchaData = await recaptchaRes.json();
+      const recaptchaData = recaptchaRes.data;
       console.log(
         "Recaptcha raw response:",
-        JSON.stringify(recaptchaData, null, 2)
+        JSON.stringify(recaptchaData, null, 2),
       );
 
       if (!recaptchaData.success) {
@@ -105,16 +115,12 @@ app.post("/api/contact", async (req, res) => {
   const fetchAIConfig = async () => {
     try {
       const [modelRes, ruleRes] = await Promise.all([
-        fetch(
-          "https://gist.githubusercontent.com/xWalfie-SMR/1327853aabcc09f0fee60df8e207a022/raw"
-        ),
-        fetch(
-          "https://gist.githubusercontent.com/xWalfie-SMR/68705f0921756cd1d078c686f1e41eb6/raw"
-        ),
+        axios.get(MODEL_GIST),
+        axios.get(PROMPT_GIST),
       ]);
 
-      const model = (await modelRes.text()).trim();
-      const rule = (await ruleRes.text()).trim();
+      const model = String(modelRes.data).trim();
+      const rule = String(ruleRes.data).trim();
 
       return { model, rule };
     } catch (err) {
@@ -129,25 +135,24 @@ app.post("/api/contact", async (req, res) => {
     return res.status(500).json({ error: "Failed to load AI config" });
 
   try {
-    const aiRes = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
+    const aiRes = await axios.post(
+      `${GITHUB_MODELS_URL}/chat/completions`,
       {
-        method: "POST",
+        model: aiConfig.model,
+        messages: [
+          { role: "system", content: aiConfig.rule },
+          { role: "user", content: JSON.stringify({ name, email, message }) },
+        ],
+      },
+      {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
         },
-        body: JSON.stringify({
-          model: aiConfig.model,
-          messages: [
-            { role: "system", content: aiConfig.rule },
-            { role: "user", content: JSON.stringify({ name, email, message }) },
-          ],
-        }),
-      }
+      },
     );
 
-    const aiData = await aiRes.json();
+    const aiData = aiRes.data;
     console.log("AI Filter Response:", aiData);
 
     let aiAnswer;
@@ -178,13 +183,9 @@ app.post("/api/contact", async (req, res) => {
     // only send email if allowed
     if (aiAnswer.decision === "ALLOW") {
       try {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
+        await axios.post(
+          "https://api.resend.com/emails",
+          {
             from: "Portfolio Contact <onboarding@resend.dev>",
             to: process.env.EMAIL_TO,
             subject: `New message from ${name}`,
@@ -192,20 +193,20 @@ app.post("/api/contact", async (req, res) => {
                    <p><strong>Email:</strong> ${email}</p>
                    <p><strong>Message:</strong> ${message}</p>
                    <hr><p>Sent from portfolio.</p>`,
-          }),
-        });
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            },
+          },
+        );
 
-        const data = await response.json();
-        if (!response.ok) {
-          console.error("Resend API error:", data);
-          jsonResponse.success = false;
-          jsonResponse.emailSent = false;
-        } else {
-          jsonResponse.emailSent = true;
-        }
+        jsonResponse.emailSent = true;
       } catch (err) {
-        console.error("Resend send error:", err);
+        console.error("Resend send error:", err.response?.data || err);
         jsonResponse.success = false;
+        jsonResponse.emailSent = false;
       }
     }
 
@@ -225,5 +226,5 @@ app.post("/api/toggle-recaptcha", (req, res) => {
 
 // start server
 app.listen(PORT, () =>
-  console.log(`Server running on port ${PORT}, MODE=${MODE}`)
+  console.log(`Server running on port ${PORT}, MODE=${MODE}`),
 );
