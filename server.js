@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
-import disposableDomains from "disposable-email-domains";
+import disposableDomains from "disposable-email-domains" with { type: "json" };
 
 const app = express();
 const PORT = process.env.PORT || 3000;
